@@ -1,0 +1,58 @@
+import tensorflow as tf
+import numpy as np
+
+# Load Text
+with open("shakespeare.txt", "r", encoding="utf-8") as file:
+    text = file.read()
+
+# Character Vocabulary
+vocab = sorted(set(text))
+char_to_int = {c:i for i,c in enumerate(vocab)}
+int_to_char = {i:c for i,c in enumerate(vocab)}
+
+# Convert Characters to Numbers
+data = np.array([char_to_int[c] for c in text])
+
+# Create Sequences
+X = []
+Y = []
+
+for i in range(len(data)-100):
+    X.append(data[i:i+100])
+    Y.append(data[i+1:i+101])
+
+X = np.array(X)
+Y = np.array(Y)
+
+# Create Dataset
+dataset = tf.data.Dataset.from_tensor_slices((X,Y))
+dataset = dataset.shuffle(10000).batch(64, drop_remainder=True)
+
+# Build RNN Model
+model = tf.keras.Sequential([
+    tf.keras.layers.Embedding(len(vocab), 128),
+    tf.keras.layers.SimpleRNN(256, return_sequences=True),
+    tf.keras.layers.Dense(len(vocab))
+])
+
+# Compile and Train
+loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
+model.compile(optimizer='adam', loss=loss)
+model.fit(dataset, epochs=10)
+
+# Generate Text
+def generate_text(start_text, length=200):
+    result = start_text
+
+    for i in range(length):
+        x = np.array([[char_to_int[c] for c in result[-100:]]])
+        prediction = model.predict(x, verbose=0)
+        next_id = np.argmax(prediction[0,-1])
+        result += int_to_char[next_id]
+
+    return result
+
+print(generate_text("Shall ", 200))
+
+tensorflow
+numpy

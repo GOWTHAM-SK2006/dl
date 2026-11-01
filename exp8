@@ -1,0 +1,115 @@
+import numpy as np
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Input, LSTM, Embedding, Dense
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+
+# Create empty lists for English and Tamil sentences
+eng, tam = [], []
+
+# Read English-Tamil sentence pairs from file
+with open("eng_tamil_pairs.txt", encoding="utf-8") as f:
+    for line in f:
+        parts = line.strip().split("\t", 1)
+        if len(parts) == 2:
+            eng.append(parts[0])
+            tam.append(parts[1])
+
+# Remove duplicate sentence pairs
+pairs = list(dict.fromkeys(zip(eng, tam)))
+eng, tam = map(list, zip(*pairs))
+
+# Add start and end tokens to Tamil sentences
+tam = ["<start> " + s + " <end>" for s in tam]
+
+# Create tokenizers for English and Tamil
+et = Tokenizer(filters="")
+tt = Tokenizer(filters="")
+
+# Convert words into numerical values
+et.fit_on_texts(eng)
+tt.fit_on_texts(tam)
+
+# Convert sentences into sequences
+x = et.texts_to_sequences(eng)
+y = tt.texts_to_sequences(tam)
+
+# Find maximum sequence lengths
+me = max(map(len, x))
+mt = max(map(len, y))
+
+# Make all sequences equal in length
+x = pad_sequences(x, maxlen=me, padding="post")
+y = pad_sequences(y, maxlen=mt, padding="post")
+
+# Get vocabulary sizes
+ev = len(et.word_index) + 1
+tv = len(tt.word_index) + 1
+
+# Prepare decoder input and output sequences
+di, do = y[:, :-1], y[:, 1:]
+
+# Encoder
+ei = Input(shape=(me,))
+ee = Embedding(ev, 64)(ei)
+
+# Encode input using LSTM
+_, h, c = LSTM(128, return_state=True)(ee)
+
+# Decoder
+dec_input = Input(shape=(mt - 1,))
+de = Embedding(tv, 64)(dec_input)
+
+# Decode using encoder states
+d = LSTM(128, return_sequences=True)(
+    de, initial_state=[h, c]
+)
+
+# Predict Tamil words using Softmax
+out = Dense(tv, activation="softmax")(d)
+
+# Create and compile the Seq2Seq model
+model = Model([ei, dec_input], out)
+model.compile(optimizer="adam",
+              loss="sparse_categorical_crossentropy",
+              metrics=["accuracy"])
+
+# Train the model
+model.fit([x, di], np.expand_dims(do, -1),
+          epochs=100, batch_size=32)
+
+# Create reverse dictionary for Tamil words
+reverse = {v: k for k, v in tt.word_index.items()}
+
+# Function to translate English sentences into Tamil
+def translate(sentence):
+
+    # Convert English sentence into sequence
+    seq = et.texts_to_sequences([sentence])
+    seq = pad_sequences(seq, maxlen=me, padding="post")
+
+    # Start decoding with start token
+    target = [tt.word_index["<start>"]]
+    end = tt.word_index["<end>"]
+
+    # Predict one Tamil word at a time
+    for _ in range(mt - 1):
+        inp = pad_sequences([target], maxlen=mt-1,
+                            padding="post")
+        pred = model.predict([seq, inp], verbose=0)
+        word = np.argmax(pred[0, len(target)-1])
+
+        # Stop when end token or padding is found
+        if word == end or word == 0:
+            break
+        target.append(word)
+
+    # Convert predicted numbers into Tamil words
+    return " ".join(reverse.get(i, "") for i in target[1:])
+
+# Display translation result
+print("English: Good morning.")
+print("Tamil:", translate("Good morning."))
+
+tensorflow
+numpy

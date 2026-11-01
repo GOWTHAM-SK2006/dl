@@ -1,0 +1,78 @@
+import nltk
+import numpy as np
+import tensorflow as tf
+
+from nltk.corpus import treebank
+from sklearn.model_selection import train_test_split
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Input, Embedding, LSTM, Dense
+
+# Load Dataset
+nltk.download('treebank')
+tagged = treebank.tagged_sents()
+
+X = [[w for w,t in s] for s in tagged]
+Y = [[t for w,t in s] for s in tagged]
+
+# Split Dataset
+X_train, X_test, Y_train, Y_test = train_test_split(
+    X, Y, test_size=0.2, random_state=42
+)
+
+# Tokenization
+wt = Tokenizer(lower=True, oov_token="<UNK>")
+wt.fit_on_texts(X_train)
+
+tt = Tokenizer(lower=False, filters="")
+tt.fit_on_texts(Y_train)
+
+X_train = wt.texts_to_sequences(X_train)
+X_test = wt.texts_to_sequences(X_test)
+Y_train = tt.texts_to_sequences(Y_train)
+Y_test = tt.texts_to_sequences(Y_test)
+
+# Padding
+m = max(len(s) for s in X_train)
+
+X_train = pad_sequences(X_train, maxlen=m, padding="post")
+X_test = pad_sequences(X_test, maxlen=m, padding="post")
+Y_train = pad_sequences(Y_train, maxlen=m, padding="post")
+Y_test = pad_sequences(Y_test, maxlen=m, padding="post")
+
+# Encoder
+inp = Input(shape=(m,))
+e = Embedding(len(wt.word_index)+1, 128, mask_zero=True)(inp)
+enc, h, c = LSTM(128, return_sequences=True, return_state=True)(e)
+
+# Decoder
+dec, _, _ = LSTM(128, return_sequences=True, return_state=True)(
+    enc, initial_state=[h,c]
+)
+out = Dense(len(tt.word_index)+1, activation="softmax")(dec)
+
+# Compile and Train
+model = Model(inp, out)
+model.compile(optimizer="adam",
+              loss="sparse_categorical_crossentropy",
+              metrics=["accuracy"])
+
+model.fit(X_train, np.expand_dims(Y_train, -1),
+          epochs=5, batch_size=32, validation_split=0.1)
+
+# Evaluate
+loss, acc = model.evaluate(X_test, np.expand_dims(Y_test, -1))
+print("Test Accuracy:", acc)
+
+# Predict POS Tags
+pred = model.predict(X_test)
+pred = np.argmax(pred, axis=-1)
+
+print("Words:", X_test[0])
+print("Predicted Tags:", pred[0])
+
+tensorflow
+numpy
+nltk
+scikit-learn

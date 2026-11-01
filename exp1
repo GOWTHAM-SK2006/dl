@@ -1,0 +1,51 @@
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+
+img = cv2.imread("Image_1.jfif", 0)
+
+# Histogram Equalization
+equ = cv2.equalizeHist(img)
+
+# Edge Detection
+blur = cv2.GaussianBlur(img, (5,5), 0)
+edges = cv2.Canny(blur, 100, 200)
+
+# Thresholding
+binary = cv2.threshold(img, 127, 255, cv2.THRESH_BINARY)
+
+# Morphological Operations
+kernel = np.ones((5,5), np.uint8)
+erosion = cv2.erode(binary, kernel, iterations=1)
+dilation = cv2.dilate(binary, kernel, iterations=1)
+
+# Data Augmentation
+color = cv2.cvtColor(cv2.imread("Image_1.jfif"), cv2.COLOR_BGR2RGB)
+data = ImageDataGenerator(rotation_range=40, zoom_range=0.2, horizontal_flip=True)
+gen = data.flow(np.expand_dims(color, 0), batch_size=1)
+
+# Display Results
+images = [img, equ, edges, binary, erosion, dilation]
+titles = ["Original", "Equalization", "Edges", "Threshold", "Erosion", "Dilation"]
+
+for i in range(6):
+    plt.subplot(2,3,i+1)
+    plt.imshow(images[i], cmap='gray')
+    plt.title(titles[i])
+    plt.axis('off')
+
+plt.show()
+
+plt.imshow(next(gen)[0].astype('uint8'))
+plt.title("Data Augmentation")
+plt.axis('off')
+plt.show()
+
+opencv-python
+numpy
+matplotlib
+tensorflow
+Pillow
+
+pip install -r requirements.txt

@@ -1,0 +1,46 @@
+import tensorflow as tf
+import numpy as np
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+
+# Load Dataset
+(x_train, y_train), (x_test, y_test) = tf.keras.datasets.imdb.load_data(num_words=10000)
+
+# Padding
+x_train = pad_sequences(x_train, maxlen=200)
+x_test = pad_sequences(x_test, maxlen=200)
+
+# Create LSTM Model
+model = tf.keras.Sequential([
+    tf.keras.layers.Embedding(10000, 128),
+    tf.keras.layers.LSTM(64),
+    tf.keras.layers.Dense(1, activation='sigmoid')
+])
+
+# Compile
+model.compile(optimizer='adam',
+              loss='binary_crossentropy',
+              metrics=['accuracy'])
+
+# Train
+model.fit(x_train, y_train, epochs=3, batch_size=64)
+
+# Evaluate
+loss, accuracy = model.evaluate(x_test, y_test)
+print("Test Accuracy:", accuracy)
+
+# Predict Custom Sentence
+word_index = tf.keras.datasets.imdb.get_word_index()
+
+sentence = "This movie was super"
+
+encoded = [word_index.get(w.lower(), 2) + 3 for w in sentence.split()]
+encoded = pad_sequences([encoded], maxlen=200)
+
+prediction = model.predict(encoded)[0][0]
+
+print("Sentence:", sentence)
+print("Sentiment:", "Positive" if prediction >= 0.5 else "Negative")
+print("Score:", prediction)
+
+tensorflow
+numpy

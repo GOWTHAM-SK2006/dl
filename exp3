@@ -1,0 +1,75 @@
+import gzip
+import idx2numpy
+import numpy as np
+import matplotlib.pyplot as plt
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
+
+# Extract Dataset
+files = [
+    "emnist-balanced-train-images-idx3-ubyte.gz",
+    "emnist-balanced-train-labels-idx1-ubyte.gz",
+    "emnist-balanced-test-images-idx3-ubyte.gz",
+    "emnist-balanced-test-labels-idx1-ubyte.gz"
+]
+
+for f in files:
+    with gzip.open(f, "rb") as src, open(f[:-3], "wb") as dst:
+        dst.write(src.read())
+
+# Load Dataset
+x_train = idx2numpy.convert_from_file("emnist-balanced-train-images-idx3-ubyte")
+y_train = idx2numpy.convert_from_file("emnist-balanced-train-labels-idx1-ubyte")
+x_test = idx2numpy.convert_from_file("emnist-balanced-test-images-idx3-ubyte")
+y_test = idx2numpy.convert_from_file("emnist-balanced-test-labels-idx1-ubyte")
+
+# Normalize and Reshape
+x_train = x_train.astype("float32") / 255.0
+x_test = x_test.astype("float32") / 255.0
+
+x_train = x_train.reshape(-1, 28, 28, 1)
+x_test = x_test.reshape(-1, 28, 28, 1)
+
+# Create CNN Model
+model = Sequential([
+    Conv2D(32, (3,3), activation='relu', input_shape=(28,28,1)),
+    MaxPooling2D((2,2)),
+    Conv2D(64, (3,3), activation='relu'),
+    MaxPooling2D((2,2)),
+    Flatten(),
+    Dense(128, activation='relu'),
+    Dropout(0.5),
+    Dense(47, activation='softmax')
+])
+
+# Compile
+model.compile(optimizer='adam',
+              loss='sparse_categorical_crossentropy',
+              metrics=['accuracy'])
+
+# Train
+history = model.fit(x_train, y_train,
+                    epochs=4, batch_size=64,
+                    validation_split=0.2)
+
+# Evaluate
+loss, accuracy = model.evaluate(x_test, y_test)
+print("Test Accuracy:", accuracy)
+
+# Plot Accuracy
+plt.plot(history.history['accuracy'])
+plt.plot(history.history['val_accuracy'])
+plt.title("Accuracy Curve")
+plt.show()
+
+# Predict
+prediction = model.predict(x_test[25:26])
+print("Predicted Class:", np.argmax(prediction))
+print("Actual Class:", y_test[25])
+print("Confidence:", np.max(prediction)*100, "%")
+
+tensorflow
+numpy
+matplotlib
+idx2numpy
