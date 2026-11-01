@@ -1,9 +1,24 @@
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
+from pathlib import Path
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
-img = cv2.imread("Image_1.jfif", 0)
+image_path = next(
+    (path for path in (Path(__file__).with_name("Image_1.jfif"),
+                       Path(__file__).with_name("img.png"))
+     if path.exists()),
+    None,
+)
+if image_path is None:
+    raise FileNotFoundError(
+        "Place Image_1.jfif or img.png in the same folder as this script."
+    )
+
+color = cv2.imread(str(image_path))
+if color is None:
+    raise ValueError(f"OpenCV could not read image: {image_path}")
+img = cv2.cvtColor(color, cv2.COLOR_BGR2GRAY)
 
 # Histogram Equalization
 equ = cv2.equalizeHist(img)
@@ -13,7 +28,7 @@ blur = cv2.GaussianBlur(img, (5,5), 0)
 edges = cv2.Canny(blur, 100, 200)
 
 # Thresholding
-binary = cv2.threshold(img, 127, 255, cv2.THRESH_BINARY)
+_, binary = cv2.threshold(img, 127, 255, cv2.THRESH_BINARY)
 
 # Morphological Operations
 kernel = np.ones((5,5), np.uint8)
@@ -21,7 +36,7 @@ erosion = cv2.erode(binary, kernel, iterations=1)
 dilation = cv2.dilate(binary, kernel, iterations=1)
 
 # Data Augmentation
-color = cv2.cvtColor(cv2.imread("Image_1.jfif"), cv2.COLOR_BGR2RGB)
+color = cv2.cvtColor(color, cv2.COLOR_BGR2RGB)
 data = ImageDataGenerator(rotation_range=40, zoom_range=0.2, horizontal_flip=True)
 gen = data.flow(np.expand_dims(color, 0), batch_size=1)
 
@@ -42,10 +57,4 @@ plt.title("Data Augmentation")
 plt.axis('off')
 plt.show()
 
-opencv-python
-numpy
-matplotlib
-tensorflow
-Pillow
 
-pip install -r requirements.txt
