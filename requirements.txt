@@ -1,0 +1,10 @@
+opencv-python
+numpy
+matplotlib
+tensorflow
+Pillow
+idx2numpy
+scikit-learn
+nltk
+pandas
+keras
